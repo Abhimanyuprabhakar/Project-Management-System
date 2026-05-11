@@ -16,7 +16,7 @@ app.use(cors());
 
 // Root route - this confirms your server is alive
 app.get('/', (req, res) => {
-    res.status(200).send('FowCraft Server is Live and Running!');
+    res.status(200).send('ManageX Server is Live and Running!');
 });
 
 // Inngest Webhook route

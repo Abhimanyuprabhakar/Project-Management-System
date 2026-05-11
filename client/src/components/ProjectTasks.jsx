@@ -2,9 +2,8 @@ import api from "../configs/api";
 import toast from "react-hot-toast";
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { useAuth } from "@clerk/clerk-react";
-import { useDispatch } from "react-redux";
-import { deleteTask, updateTask } from "../features/workspaceSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { deleteTask, updateTask, updateWorkspace } from "../features/workspaceSlice";
 import { Bug, CalendarIcon, GitCommit, MessageSquare, Square, Trash, XIcon, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -24,8 +23,9 @@ const priorityTexts = {
 
 const ProjectTasks = ({ tasks }) => {
     const dispatch = useDispatch();
-    const { getToken } = useAuth();
+    const getToken = async () => "";
     const navigate = useNavigate();
+    const currentWorkspace = useSelector((state) => state?.workspace?.currentWorkspace || null);
     const [selectedTasks, setSelectedTasks] = useState([]);
 
     const [filters, setFilters] = useState({
@@ -60,13 +60,20 @@ const ProjectTasks = ({ tasks }) => {
     const handleStatusChange = async (taskId, newStatus) => {
         try {
             toast.loading("Updating status...");
-            const token = await getToken();
 
-            await api.put(`/api/tasks/${taskId}`, { status: newStatus }, { headers: { Authorization: `Bearer ${token}` } });
+            await api.put(`/api/tasks/${taskId}`, { status: newStatus });
 
+            // Update task in Redux
             let updatedTask = structuredClone(tasks.find((t) => t.id === taskId));
             updatedTask.status = newStatus;
             dispatch(updateTask(updatedTask));
+
+            // Re-fetch workspace to get updated project progress & status
+            if (currentWorkspace) {
+                const { data } = await api.get("/api/workspaces");
+                const freshWorkspace = data.workspaces?.find((w) => w.id === currentWorkspace.id);
+                if (freshWorkspace) dispatch(updateWorkspace(freshWorkspace));
+            }
 
             toast.dismissAll();
             toast.success("Task status updated successfully");
@@ -81,10 +88,9 @@ const ProjectTasks = ({ tasks }) => {
             const confirm = window.confirm("Are you sure you want to delete the selected tasks?");
             if (!confirm) return;
 
-            const token = await getToken();
             toast.loading("Deleting tasks...");
 
-            await api.post("/api/tasks/delete", { tasksIds: selectedTasks }, { headers: { Authorization: `Bearer ${token}` } });
+            await api.post("/api/tasks/delete", { tasksIds: selectedTasks });
             dispatch(deleteTask(selectedTasks));
 
             toast.dismissAll();

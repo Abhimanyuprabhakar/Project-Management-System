@@ -3,42 +3,8 @@ generator client {
 }
 
 datasource db {
-    provider  = "postgresql"
+    provider  = "sqlite"
     url       = env("DATABASE_URL")
-    directUrl = env("DIRECT_URL")
-}
-
-enum WorkspaceRole {
-    ADMIN
-    MEMBER
-}
-
-enum TaskStatus {
-    TODO
-    IN_PROGRESS
-    DONE
-}
-
-enum TaskType {
-    TASK
-    BUG
-    FEATURE
-    IMPROVEMENT
-    OTHER
-}
-
-enum ProjectStatus {
-    ACTIVE
-    PLANNING
-    COMPLETED
-    ON_HOLD
-    CANCELLED
-}
-
-enum Priority {
-    LOW
-    MEDIUM
-    HIGH
 }
 
 model User {
@@ -62,7 +28,7 @@ model Workspace {
     name        String
     slug        String   @unique
     description String?
-    settings    Json     @default("{}")
+    settings    String   @default("{}") // SQLite doesn't natively support Json type, using String
     ownerId     String
     createdAt   DateTime @default(now())
     image_url   String   @default("")
@@ -78,7 +44,7 @@ model WorkspaceMember {
     userId      String
     workspaceId String
     message     String        @default("")
-    role        WorkspaceRole @default(MEMBER)
+    role        String        @default("MEMBER")
     user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
     workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -89,8 +55,8 @@ model Project {
     id          String          @id @default(uuid())
     name        String
     description String?
-    priority    Priority        @default(MEDIUM)
-    status      ProjectStatus   @default(ACTIVE)
+    priority    String          @default("MEDIUM")
+    status      String          @default("ACTIVE")
     start_date  DateTime?
     end_date    DateTime?
     team_lead   String
@@ -120,9 +86,9 @@ model Task {
     projectId   String
     title       String
     description String?
-    status      TaskStatus @default(TODO)
-    type        TaskType   @default(TASK)
-    priority    Priority   @default(MEDIUM)
+    status      String     @default("TODO")
+    type        String     @default("TASK")
+    priority    String     @default("MEDIUM")
     assigneeId  String
     due_date    DateTime
     createdAt   DateTime   @default(now())

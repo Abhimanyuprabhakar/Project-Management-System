@@ -7,7 +7,10 @@ export const createTask = async (req, res) => {
 
         const { userId } = await req.auth();
         const { projectId, title, description, type, status, priority, assigneeId, due_date } = req.body;
-        const origin = req.get('origin');
+        const origin =
+          req.get("origin") ||
+          process.env.APP_URL ||
+          "http://localhost:5173";
 
         // Check if user has admin role for project
         const project = await prisma.project.findUnique({
@@ -23,6 +26,10 @@ export const createTask = async (req, res) => {
         }
         else if (assigneeId && !project.members.find((member) => member.user.id === assigneeId)) {
             return res.status(403).json({ message: "assignee is not a member of the project / workspace" });
+        }
+
+        if (!due_date) {
+            return res.status(400).json({ message: "Due date is required" });
         }
 
         const task = await prisma.task.create({
@@ -43,12 +50,13 @@ export const createTask = async (req, res) => {
             include: { assignee: true },
         });
 
-        await inngest.send({
+        // Fire-and-forget: don't let Inngest errors (e.g. 401 in local dev) fail task creation
+        inngest.send({
             name: "app/task.assigned",
-            data: {
-                taskId: task.id, origin
-            }
-        })
+            data: { taskId: task.id, origin }
+        }).catch((err) => {
+            console.warn("[Inngest] Event send skipped (local dev):", err?.message || err);
+        });
 
         res.json({ task: taskWithAssignee, message: "Task created successfully" });
     } catch (error) {
@@ -86,6 +94,17 @@ export const updateTask = async (req, res) => {
         const updatedTask = await prisma.task.update({
             where: { id: req.params.id },
             data: req.body,
+        });
+
+        // Auto-update project progress and status based on task completion
+        const allTasks = await prisma.task.findMany({ where: { projectId: task.projectId } });
+        const doneTasks = allTasks.filter((t) => t.status === "DONE").length;
+        const progress = allTasks.length > 0 ? Math.round((doneTasks / allTasks.length) * 100) : 0;
+        const autoStatus = progress === 100 ? "COMPLETED" : (project.status === "COMPLETED" ? "ACTIVE" : project.status);
+
+        await prisma.project.update({
+            where: { id: task.projectId },
+            data: { progress, status: autoStatus },
         });
 
         res.json({ message: "Task updated successfully", task: updatedTask });

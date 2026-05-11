@@ -58,8 +58,7 @@ export default function StatsGrid() {
                     (p) => p.status !== "CANCELLED" && p.status !== "COMPLETED"
                 ).length,
                 completedProjects: currentWorkspace.projects
-                    .filter((p) => p.status === "COMPLETED")
-                    .reduce((acc, project) => acc + project.tasks.length, 0),
+                    .filter((p) => p.status === "COMPLETED").length,
                 myTasks: currentWorkspace.projects.reduce(
                     (acc, project) =>
                         acc +
@@ -70,7 +69,7 @@ export default function StatsGrid() {
                 ),
                 overdueIssues: currentWorkspace.projects.reduce(
                     (acc, project) =>
-                        acc + project.tasks.filter((t) => t.due_date < new Date()).length,
+                        acc + project.tasks.filter((t) => new Date(t.due_date) < new Date()).length,
                     0
                 ),
             });

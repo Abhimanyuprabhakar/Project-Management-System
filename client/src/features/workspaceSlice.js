@@ -11,6 +11,16 @@ export const fetchWorkspaces = createAsyncThunk("workspace/fetchWorkspaces", asy
     }
 });
 
+export const createWorkspaceThunk = createAsyncThunk("workspace/createWorkspace", async ({ name, description }, { rejectWithValue }) => {
+    try {
+        const { data } = await api.post("/api/workspaces", { name, description });
+        return data.workspace;
+    } catch (error) {
+        return rejectWithValue(error?.response?.data?.message || error.message);
+    }
+});
+
+
 const initialState = {
     workspaces: [],
     currentWorkspace: null,
@@ -136,6 +146,18 @@ const workspaceSlice = createSlice({
             state.loading = false;
         });
         builder.addCase(fetchWorkspaces.rejected, (state) => {
+            state.loading = false;
+        });
+        builder.addCase(createWorkspaceThunk.pending, (state) => {
+            state.loading = true;
+        });
+        builder.addCase(createWorkspaceThunk.fulfilled, (state, action) => {
+            state.workspaces.push(action.payload);
+            state.currentWorkspace = action.payload;
+            localStorage.setItem("currentWorkspaceId", action.payload.id);
+            state.loading = false;
+        });
+        builder.addCase(createWorkspaceThunk.rejected, (state) => {
             state.loading = false;
         });
     }

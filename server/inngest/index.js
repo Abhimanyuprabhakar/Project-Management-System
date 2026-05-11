@@ -3,7 +3,7 @@ import prisma from "../configs/prisma.js";
 import sendEmail from "../configs/nodemailer.js";
 
 // Create a client to send and receive events
-export const inngest = new Inngest({ id: "fowcraft" });
+export const inngest = new Inngest({ id: "managex" });
 
 // Inngest Function to save user data to a database
 const syncUserCreation = inngest.createFunction({ id: "sync-user-from-clerk" }, { event: "clerk/user.created" }, async ({ event }) => {
@@ -113,6 +113,8 @@ const sendBookingConfirmationEmail = inngest.createFunction({ id: "send-task-ass
         include: { assignee: true, project: true },
     });
 
+    if (!task) return;
+
     await sendEmail({
         to: task.assignee.email,
         subject: `New Task Assignment in ${task.project.name}`,
@@ -142,29 +144,30 @@ const sendBookingConfirmationEmail = inngest.createFunction({ id: "send-task-ass
     if (new Date(task.due_date).toDateString() !== new Date().toDateString()) {
         await step.sleepUntil("wait-for-the-due-date", new Date(task.due_date));
 
-        await step.run("check-if-task-is-completed ", async () => {
-            const task = await prisma.task.findUnique({
+        const currentTask = await step.run("check-task-status", async () => {
+            return await prisma.task.findUnique({
                 where: { id: taskId },
                 include: { assignee: true, project: true },
             });
+        });
 
-            if (!task) return;
+        if (!currentTask) return;
 
-            if (task.status !== "DONE") {
-                await step.run("send-task-reminder-mail", async () => {
-                    await sendEmail({
-                        to: task.assignee.email,
-                        subject: `Reminder for ${task.project.name}`,
-                        body: `
+        if (currentTask.status !== "DONE") {
+            await step.run("send-task-reminder-mail", async () => {
+                await sendEmail({
+                    to: currentTask.assignee.email,
+                    subject: `Reminder for ${currentTask.project.name}`,
+                    body: `
                                     <div style="max-width: 600px;">
-                                    <h2>Hi ${task.assignee.name}, 👋</h2>
+                                    <h2>Hi ${currentTask.assignee.name}, 👋</h2>
                                     
-                                    <p style="font-size: 16px;">You have a task due in ${task.project.name}:</p>
-                                    <p style="font-size: 18px; font-weight: bold; color: #007bff; margin: 8px 0;">${task.title}</p>
+                                    <p style="font-size: 16px;">You have a task due in ${currentTask.project.name}:</p>
+                                    <p style="font-size: 18px; font-weight: bold; color: #007bff; margin: 8px 0;">${currentTask.title}</p>
                                     
                                     <div style="border: 1px solid #ddd; padding: 12px 16px; border-radius: 6px; margin-bottom: 30px;">
-                                        <p style="margin: 6px 0;"><strong>Description:</strong> ${task.description}</p>
-                                        <p style="margin: 6px 0;"><strong>Due Date:</strong> ${new Date(task.due_date).toLocaleDateString()}</p>
+                                        <p style="margin: 6px 0;"><strong>Description:</strong> ${currentTask.description}</p>
+                                        <p style="margin: 6px 0;"><strong>Due Date:</strong> ${new Date(currentTask.due_date).toLocaleDateString()}</p>
                                     </div>
                                     
                                     <a href="${origin}" style="background-color: #007bff; padding: 12px 24px; border-radius: 5px; color: #fff; font-weight: 600; font-size: 16px; text-decoration: none;">
@@ -176,10 +179,9 @@ const sendBookingConfirmationEmail = inngest.createFunction({ id: "send-task-ass
                                     </p>
                                     </div>
                                     `,
-                    });
                 });
-            }
-        });
+            });
+        }
     }
 });
 

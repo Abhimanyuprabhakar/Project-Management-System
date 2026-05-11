@@ -22,10 +22,18 @@ export const createProject = async (req, res) => {
         }
 
         // Get Team Lead using email
+        if (!team_lead) {
+            return res.status(400).json({ message: "Team lead email is required" });
+        }
+
         const teamLead = await prisma.user.findUnique({
             where: { email: team_lead },
             select: { id: true },
         });
+
+        if (!teamLead) {
+            return res.status(404).json({ message: "Team lead not found" });
+        }
 
         const project = await prisma.project.create({
             data: {
@@ -115,8 +123,8 @@ export const updateProject = async (req, res) => {
                 status,
                 priority,
                 progress,
-                start_date: start_date ? new Date(start_date) : null,
-                end_date: end_date ? new Date(end_date) : null,
+                start_date: start_date !== undefined ? (start_date ? new Date(start_date) : null) : undefined,
+                end_date: end_date !== undefined ? (end_date ? new Date(end_date) : null) : undefined,
             }
         });
         
@@ -150,7 +158,7 @@ export const addMember = async (req, res) => {
         }
 
         // Check if user is already a member
-        const existingMember = project.members.find((member) => member.email === email);
+        const existingMember = project.members.find((member) => member.user.email === email);
 
         if (existingMember) {
             return res.status(400).json({ message: "User is already a member" });

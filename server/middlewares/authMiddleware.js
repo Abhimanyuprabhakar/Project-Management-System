@@ -6,9 +6,11 @@ export const protect = async (req, res, next) => {
 
         // Get first user from database to avoid foreign key issues
         const firstUser = await prisma.user.findFirst();
-        if (firstUser) {
-            userId = firstUser.id;
+        if (!firstUser) {
+            return res.status(500).json({ message: "No users found in database" });
         }
+        
+        userId = firstUser.id;
 
         // Mock req.auth()
         req.auth = () => ({ userId });

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { XIcon } from "lucide-react";
-import { useAuth } from "@clerk/clerk-react";
 import { useDispatch, useSelector } from "react-redux";
 import { addProject } from "../features/workspaceSlice";
 import toast from "react-hot-toast";
@@ -9,7 +8,7 @@ import api from "../configs/api";
 const CreateProjectDialog = ({ isDialogOpen, setIsDialogOpen }) => {
 
     const dispatch = useDispatch();
-    const { getToken } = useAuth();
+    const getToken = async () => "";
     const { currentWorkspace } = useSelector((state) => state.workspace);
 
     const [formData, setFormData] = useState({
