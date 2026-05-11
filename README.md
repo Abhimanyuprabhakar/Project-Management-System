@@ -1,4 +1,4 @@
-#  FowCraft — Project Management SaaS
+#  ManageX — Project Management SaaS
 ---
 
 ## 🖼️ Preview
